@@ -16,13 +16,17 @@ def get_stock_screener_data():
     print("data fetched from nasdaq's stock screener")
     return pd.DataFrame(data['data']['rows'])
 
+def excel_to_df():
+    file = '/Users/deep9198/Workspace/personal/excel/ceo _list_10-10-23.xlsx'
+    return pd.read_excel(file,sheet_name='final')
 
-df = get_stock_screener_data()
+
+df = excel_to_df()
 df.insert(12, "CEO", "")
 df.insert(13, "Employees", "")
-df.insert(14, "Headquarters", "")
-df.insert(15, "Founded", "")
-df.insert(16, "Industry", "")
+df.insert(14, "Headquarters-I", "")
+df.insert(15, "Founded-I", "")
+df.insert(16, "Industry-I", "")
 df.insert(17, "Source", "")
 df.insert(18, "Source Link", "")
 
@@ -146,7 +150,7 @@ def write_to_excel():
     name = "nasdaq_screener_{}.xlsx".format(time.time_ns())
     print("writing data to {}".format(name))
     df.to_excel(name, index=False,
-                columns=["symbol", "name", "marketCap", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                columns=["Symbol", "Stock", "Market Cap", "CEO Name", "employees", "Headquarters-I", "Founded-I", "Industry-I",
                          "Source",
                          "Source Link"],
                 header=["Symbol", "Name", "Market Capital", "CEO", "Employees", "Headquarters", "Founded", "Industry",

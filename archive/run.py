@@ -28,7 +28,7 @@ df.insert(18, "Source Link", "")
 
 total_rows = len(df)
 
-rows_per_thread = 25
+rows_per_thread = 50
 total_threads = (total_rows / rows_per_thread).__ceil__()
 print("Total Rows: {} and Total Threads: {}".format(total_rows, total_threads))
 cnt = 0
@@ -64,6 +64,17 @@ def set_ceo_details_new(index, company_details: dict, ticker):
           sep="")
 
 
+# Write data to CSV
+def write_to_csv():
+    name = "nasdaq_screener_{}.csv".format(time.time_ns())
+    print("writing data to {}".format(name))
+    df.to_csv(name, index=False,
+              columns=["symbol", "name", "marketCap", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                       "Source", "Source Link"],
+              header=["Symbol", "Name", "Market Capital", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                      "Source", "Source Link"])
+    print("{} generated successfully".format(name))
+
 # initialize dictionary to populate company details
 def initialize_company_details_dict():
     # todo: set a separate dict for source info
@@ -78,6 +89,18 @@ def initialize_company_details_dict():
         "industry": None
     }
 
+
+# Wrapper function to monitor thread execution
+def fetch_with_timeout(thread_index):
+    thread = Thread(target=fetch, args=(thread_index,))
+    thread.start()
+    thread.join(300)  # Wait for the thread to finish or timeout
+
+    if thread.is_alive():
+        print(f"Thread {thread_index + 1} exceeded timeout and will be terminated.")
+        # Threads cannot be forcefully killed in Python, but we can log and skip further processing
+        return False
+    return True
 
 # Start Fetching Operation
 def fetch(num: int):
@@ -123,7 +146,8 @@ def fetch(num: int):
         cnt += 1
         print("Thread finished: {} out of {}".format(cnt, total_threads))
         if cnt >= total_threads - 1:
-            write_to_excel()
+            #write_to_excel()
+            write_to_csv()
         else:
             print("Count {} and Total Threads {}".format(cnt, total_threads))
 
@@ -159,3 +183,9 @@ for thread_index in range(total_threads):
     print("starting thread " + str(thread_index + 1))
     t = Thread(target=fetch, args=(thread_index,))
     t.start()
+
+# for thread_index in range(total_threads):
+#     print("starting thread " + str(thread_index + 1))
+#     success = fetch_with_timeout(thread_index)
+#     if not success:
+#         print(f"Thread {thread_index + 1} could not complete successfully.")

@@ -36,6 +36,9 @@ def send_request(url):
     try:
         if 'google.com' in url:
             res = requests.get(url, cookies={'CONSENT': 'YES+'}, headers=headers)
+        elif 'yahoo.com' in url:
+            # Simulate accepting cookies for Yahoo Finance
+            res = requests.get(url, cookies={'A1': 'd=AQABBJ...; Expires=Tue, 19 Jan 2038 03:14:07 GMT; Path=/; Domain=.yahoo.com; Secure; HttpOnly'}, headers=headers)    
         else:
             res = requests.get(url, headers=headers)
         if res.status_code >= 300:

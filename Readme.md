@@ -10,7 +10,7 @@
     - [x] (windows) run `<my_env_name>\scripts\activate` command to activate virtualenv.
     - [x] (mac/linux) run `source <my_env_name>/bin/activate` command to activate virtualenv.
 - [x] run `pip install -r requirements.txt` command to install dependencies.
-- [x] run `python run.py` command to start script.
+- [x] run `python archive/run.py` command to start script.
 - [x] `nasdaq_ceo.xlsx` file will be generated after script completes.
 
 

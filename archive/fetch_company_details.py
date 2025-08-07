@@ -111,7 +111,7 @@ def get_from_gfinance_nyse(ticker, company_details):
 # Get from CNBC
 def get_from_cnbc(ticker: str, company_details):
     set_source_url = False
-    url = "https://www.cnbc.com/quotes/" + ticker
+    url = "p" + ticker
     set_ip()
     res = send_request(url)
     if res:
@@ -143,7 +143,7 @@ def get_from_cnbc(ticker: str, company_details):
 # Get from CNN
 def get_from_cnn(ticker: str, company_details):
     set_source_url = False
-    url = "https://money.cnn.com/quote/profile/profile.html?symb=" + ticker
+    url = "https://money.cnn.com/quote/profile/profile.html?symb=" + ticker # Change this logic - now the website has changed
     set_ip()
     res = send_request(url)
     if res:
@@ -246,7 +246,7 @@ def get_from_yahoo_finance(ticker: str, company_details):
                 td_list = tr.find_all("td")
                 if len(td_list) > 1:
                     if td_list[1].span is not None:
-                        text = td_list[1].span.text
+                        text = td_list[1].span.text # Change this logic - now the order has changed
                         if text is not None and ("Chief Exec. Officer" in text or "CEO" in text):
                             company_details["ceo"] = td_list[0].span.text
                             set_source_url = False

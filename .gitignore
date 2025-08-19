@@ -11,3 +11,8 @@ pip-delete-this-directory.txt
 .venv
 
 .DS_Store
+
+.pytest_cache/
+
+tests/htmlcov/
+tests/outuput/

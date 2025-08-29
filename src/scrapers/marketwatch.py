@@ -9,7 +9,7 @@ class MarketWatchScraper(BaseScraper):
 
     def scrape(self, ticker: str, company_details: CompanyDetails) -> CompanyDetails:
         url = (
-            f"https://www.marketwatch.com/investing/stock/{ticker}/company-profile?mod=mw_quote_tab"
+            f"https://www.marketwatch.com/investing/stock/{ticker}/company-profile"
         )
         response = self.http_client.get(url)
         if response:

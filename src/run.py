@@ -25,9 +25,9 @@ from src.fetchers.company_details_fetcher import CompanyDetailsFetcher
 RATE_LIMITING_CONFIG = {
     "max_workers": 1,  # Number of concurrent workers (lower = more conservative)
     "batch_size": 10,  # Number of companies to process in each batch
-    "test_mode": os.getenv("TEST_MODE", "True").lower() == "true",  # Set to True for testing with limited data
-    "test_limit": 50,   # Number of companies to process in test mode
-    "batch_delay": 2,   # seconds to wait between batches
+    "test_mode": os.getenv("TEST_MODE", "False").lower() == "true",  # Set to True for testing with limited data
+    "test_limit": 5,   # Number of companies to process in test mode
+    "batch_delay": 1,   # seconds to wait between batches
 }
 
 # Configure logging

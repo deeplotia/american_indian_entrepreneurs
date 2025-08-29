@@ -8,7 +8,7 @@ class YahooFinanceScraper(BaseScraper):
     """Scraper for Yahoo Finance."""
 
     def scrape(self, ticker: str, company_details: CompanyDetails) -> CompanyDetails:
-        url = f"https://finance.yahoo.com/quote/{ticker}/profile?p={ticker}"
+        url = f"https://finance.yahoo.com/quote/{ticker}/profile/"
         response = self.http_client.get(url)
         if response:
             soup = BeautifulSoup(response.content, "html.parser")

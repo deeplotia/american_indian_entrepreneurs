@@ -119,6 +119,7 @@ class HTTPClient:
                     logger.warning(
                         f"Server error {status} for {url}, attempt {attempt + 1}/{MAX_RETRIES}"
                     )
+                    
                     if attempt < MAX_RETRIES - 1:
                         time.sleep((2 ** attempt) * RETRY_DELAY)
                         continue
@@ -131,6 +132,10 @@ class HTTPClient:
             ) as error:
                 logger.warning(
                     f"Request failed (attempt {attempt + 1}/{MAX_RETRIES}): {error}"
+                )
+                logger.error(
+                        f"Error Occurred {status} for {url}",
+                        exc_info=True
                 )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep((2 ** attempt) * RETRY_DELAY)

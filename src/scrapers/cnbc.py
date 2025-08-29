@@ -8,7 +8,7 @@ class CNBCScraper(BaseScraper):
     """Scraper for CNBC."""
 
     def scrape(self, ticker: str, company_details: CompanyDetails) -> CompanyDetails:
-        url = f"https://www.cnbc.com/quotes/{ticker}?tab=profile"
+        url = f"https://www.cnbc.com/quotes/{ticker}"
         response = self.http_client.get(url)
         if response:
             soup = BeautifulSoup(response.content, "html.parser")

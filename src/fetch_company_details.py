@@ -38,8 +38,8 @@ USER_AGENTS = [
 ]
 
 REQUEST_TIMEOUT = 30
-MAX_RETRIES = 5
-RETRY_DELAY = 2.0
+MAX_RETRIES = 2
+RETRY_DELAY = 1.0
 RATE_LIMIT_DELAY = 3.0  # Delay between requests to avoid rate limiting
 
 

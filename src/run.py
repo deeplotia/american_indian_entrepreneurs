@@ -23,11 +23,11 @@ from src.fetchers.company_details_fetcher import CompanyDetailsFetcher
 
 # Configuration for rate limiting - adjust these values if you encounter 429/403 errors
 RATE_LIMITING_CONFIG = {
-    "max_workers": 2,  # Number of concurrent workers (lower = more conservative)
+    "max_workers": 1,  # Number of concurrent workers (lower = more conservative)
     "batch_size": 10,  # Number of companies to process in each batch
-    "batch_delay": 5,  # Seconds to wait between batches
-    "test_mode": True,  # Set to True for testing with limited data
+    "test_mode": os.getenv("TEST_MODE", "True").lower() == "true",  # Set to True for testing with limited data
     "test_limit": 50,   # Number of companies to process in test mode
+    "batch_delay": 2,   # seconds to wait between batches
 }
 
 # Configure logging
@@ -69,7 +69,12 @@ class DataProcessor:
     def __init__(self, max_workers: int = None, batch_size: int = None):
         # Use configuration or fallback to conservative settings
         self.max_workers = max_workers or RATE_LIMITING_CONFIG["max_workers"]
-        self.batch_size = batch_size or RATE_LIMITING_CONFIG["batch_size"]
+        # If max_workers == 1 we process sequentially so batch_size is not needed;
+        # set it to 1 for predictable per-item updates and to avoid large batches.
+        if self.max_workers == 1:
+            self.batch_size = 1
+        else:
+            self.batch_size = batch_size or RATE_LIMITING_CONFIG["batch_size"]
         self.fetcher = CompanyDetailsFetcher(max_workers=self.max_workers)
         self.nasdaq_processor = NasdaqDataProcessor()
 
@@ -141,7 +146,7 @@ class DataProcessor:
             # Add delay between batches to avoid overwhelming servers
             if batch_start + self.batch_size < total_rows:
                 logger.info(f"Waiting {RATE_LIMITING_CONFIG['batch_delay']} seconds between batches to avoid rate limiting...")
-                time.sleep(RATE_LIMITING_CONFIG['batch_delay'])
+                time.sleep(RATE_LIMITING_CONFIG.get('batch_delay', 1))
 
             # Log progress
             if processed_count % 10 == 0:

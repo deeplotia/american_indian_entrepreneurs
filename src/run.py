@@ -18,7 +18,17 @@ from typing import Any, Dict, List
 import pandas as pd
 from tqdm import tqdm
 
-from src.fetch_company_details import CompanyDetails, CompanyDetailsFetcher
+from src.models.company_details import CompanyDetails
+from src.fetchers.company_details_fetcher import CompanyDetailsFetcher
+
+# Configuration for rate limiting - adjust these values if you encounter 429/403 errors
+RATE_LIMITING_CONFIG = {
+    "max_workers": 2,  # Number of concurrent workers (lower = more conservative)
+    "batch_size": 10,  # Number of companies to process in each batch
+    "batch_delay": 5,  # Seconds to wait between batches
+    "test_mode": True,  # Set to True for testing with limited data
+    "test_limit": 50,   # Number of companies to process in test mode
+}
 
 # Configure logging
 logging.basicConfig(
@@ -56,9 +66,10 @@ class NasdaqDataProcessor:
 class DataProcessor:
     """Main data processing class with improved threading and error handling."""
 
-    def __init__(self, max_workers: int = None, batch_size: int = 50):
-        self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
-        self.batch_size = batch_size
+    def __init__(self, max_workers: int = None, batch_size: int = None):
+        # Use configuration or fallback to conservative settings
+        self.max_workers = max_workers or RATE_LIMITING_CONFIG["max_workers"]
+        self.batch_size = batch_size or RATE_LIMITING_CONFIG["batch_size"]
         self.fetcher = CompanyDetailsFetcher(max_workers=self.max_workers)
         self.nasdaq_processor = NasdaqDataProcessor()
 
@@ -126,6 +137,11 @@ class DataProcessor:
                     details = company_details[ticker]
                     self._update_dataframe_row(df, row_index, details)
                     processed_count += 1
+
+            # Add delay between batches to avoid overwhelming servers
+            if batch_start + self.batch_size < total_rows:
+                logger.info(f"Waiting {RATE_LIMITING_CONFIG['batch_delay']} seconds between batches to avoid rate limiting...")
+                time.sleep(RATE_LIMITING_CONFIG['batch_delay'])
 
             # Log progress
             if processed_count % 10 == 0:
@@ -262,13 +278,14 @@ class DataExporter:
 def main():
     """Main execution function."""
     try:
-        # Initialize processors
-        processor = DataProcessor(max_workers=8, batch_size=25)  # Conservative settings
+            # Initialize processors with configuration settings
+        processor = DataProcessor()
         exporter = DataExporter()
 
-        # Process stock data (limit to first 100 for testing)
+        # Process stock data with optional test limit
         logger.info("Starting stock data processing...")
-        df = processor.process_stock_data(limit=None)  # Remove limit for full processing
+        limit = RATE_LIMITING_CONFIG["test_limit"] if RATE_LIMITING_CONFIG["test_mode"] else None
+        df = processor.process_stock_data(limit=limit)
 
         # Export a single CSV result
         csv_file = exporter.export_to_csv(df)

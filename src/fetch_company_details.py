@@ -1,9 +1,12 @@
-"""
-Company Details Fetcher - Refactored Version
+"""Deprecated: logic moved to dedicated modules under `src/`.
 
-This module provides a comprehensive, object-oriented approach to fetching company details
-from various financial websites. It implements best practices for web scraping including
-proper error handling, rate limiting, and extensible architecture.
+This file remains to preserve backwards compatibility of imports. New code
+should import from:
+
+- src.models.company_details.CompanyDetails
+- src.http.http_client.HTTPClient
+- src.scrapers.*
+- src.fetchers.company_details_fetcher.CompanyDetailsFetcher
 """
 
 import logging
@@ -26,16 +29,18 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-    "Mozilla/5.0 (Linux; Android 11; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.72 Mobile Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
 ]
 
 REQUEST_TIMEOUT = 30
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0
+MAX_RETRIES = 5
+RETRY_DELAY = 2.0
+RATE_LIMIT_DELAY = 3.0  # Delay between requests to avoid rate limiting
 
 
 @dataclass
@@ -81,52 +86,110 @@ class HTTPClient:
     def __init__(self):
         self.fake = Faker()
         self.session = requests.Session()
+        self.last_request_time = 0
         self._update_headers()
 
     def _update_headers(self):
-        """Update request headers with random user agent and IP."""
-        self.fake.seed_instance(random.randint(0, 7))
+        """Update request headers with random user agent and more realistic headers."""
+        self.fake.seed_instance(random.randint(0, 1000))
         ip = self.fake.ipv4()
 
+        # More comprehensive and realistic headers
         self.headers = {
-            "accept": "*/*",
             "User-Agent": random.choice(USER_AGENTS),
-            "Accept-Language": "en-US,en;",
-            "referer": "https://www.google.com/",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Cache-Control": "max-age=0",
             "X-Forwarded-For": ip,
             "X-Real-Ip": ip,
+            "X-Requested-With": "XMLHttpRequest",
         }
 
+    def _rate_limit_delay(self):
+        """Implement rate limiting to avoid 429 errors."""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < RATE_LIMIT_DELAY:
+            sleep_time = RATE_LIMIT_DELAY - time_since_last_request
+            time.sleep(sleep_time)
+        
+        self.last_request_time = time.time()
+
     def get(self, url: str, **kwargs) -> Optional[requests.Response]:
-        """Make HTTP GET request with retry logic and smarter status handling."""
+        """Make HTTP GET request with improved retry logic and rate limiting."""
+        self._rate_limit_delay()
+        
         for attempt in range(MAX_RETRIES):
             try:
                 self._update_headers()
 
                 # Handle special cases for different domains
                 if "google.com" in url:
-                    kwargs["cookies"] = {"CONSENT": "YES+"}
+                    kwargs["cookies"] = {"CONSENT": "YES+", "NID": "511=abc123"}
                 elif "yahoo.com" in url:
-                    # Simulate accepted cookies
                     kwargs["cookies"] = {
-                        "A1": "d=AQABBJ...; Expires=Tue, 19 Jan 2038 03:14:07 GMT; Path=/; Domain=.yahoo.com; Secure; HttpOnly"
+                        "A1": "d=AQABBJ...; Expires=Tue, 19 Jan 2038 03:14:07 GMT; Path=/; Domain=.yahoo.com; Secure; HttpOnly",
+                        "A3": "d=AQABBJ...; Expires=Tue, 19 Jan 2038 03:14:07 GMT; Path=/; Domain=.yahoo.com; Secure; HttpOnly"
                     }
+                elif "marketwatch.com" in url:
+                    kwargs["cookies"] = {"wsod_region": "us", "wsod_language": "en"}
 
                 response = self.session.get(
                     url, headers=self.headers, timeout=REQUEST_TIMEOUT, **kwargs
                 )
 
                 status = response.status_code
+                
+                # Success case
                 if status < 300:
                     return response
 
-                # Do not retry on 404/410 etc.
-                if status in (400, 401, 403, 404, 405, 410):
+                # Handle specific error codes
+                if status == 429:  # Rate limited
+                    logger.warning(f"Rate limited (429) for {url}, attempt {attempt + 1}/{MAX_RETRIES}")
+                    if attempt < MAX_RETRIES - 1:
+                        # Exponential backoff for rate limits
+                        backoff = (2 ** attempt) * RATE_LIMIT_DELAY * 2
+                        logger.info(f"Waiting {backoff} seconds before retry...")
+                        time.sleep(backoff)
+                        continue
+                    else:
+                        logger.error(f"Rate limit exceeded for {url} after {MAX_RETRIES} attempts")
+                        return None
+                
+                elif status == 403:  # Forbidden
+                    logger.warning(f"Forbidden (403) for {url}, attempt {attempt + 1}/{MAX_RETRIES}")
+                    if attempt < MAX_RETRIES - 1:
+                        # Try with different headers for 403
+                        self._update_headers()
+                        time.sleep(RETRY_DELAY)
+                        continue
+                    else:
+                        logger.error(f"Access forbidden for {url} after {MAX_RETRIES} attempts")
+                        return None
+                
+                elif status in (400, 401, 404, 405, 410):  # Client errors - don't retry
                     logger.info(f"HTTP {status} for {url}; skipping retries")
                     return None
-
-                # Retry on 429/5xx with exponential backoff
-                logger.warning(f"HTTP {status} for {url}")
+                
+                elif status >= 500:  # Server errors - retry with backoff
+                    logger.warning(f"Server error {status} for {url}, attempt {attempt + 1}/{MAX_RETRIES}")
+                    if attempt < MAX_RETRIES - 1:
+                        backoff = (2 ** attempt) * RETRY_DELAY
+                        time.sleep(backoff)
+                        continue
+                    else:
+                        logger.error(f"Server error for {url} after {MAX_RETRIES} attempts")
+                        return None
 
             except (
                 requests.exceptions.ConnectionError,
@@ -136,13 +199,14 @@ class HTTPClient:
                 logger.warning(
                     f"Request failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
                 )
+                
+                if attempt < MAX_RETRIES - 1:
+                    backoff = (2 ** attempt) * RETRY_DELAY
+                    time.sleep(backoff)
+                else:
+                    logger.error(f"Failed to fetch {url} after {MAX_RETRIES} attempts")
+                    return None
 
-            # Backoff before next attempt
-            if attempt < MAX_RETRIES - 1:
-                backoff = (2 ** attempt) * RETRY_DELAY
-                time.sleep(backoff)
-
-        logger.error(f"Failed to fetch {url} after {MAX_RETRIES} attempts")
         return None
 
 
@@ -586,7 +650,11 @@ class CompanyDetailsFetcher:
             MarketWatchScraper(self.http_client),
             YahooFinanceScraper(self.http_client),
         ]
-        self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
+        # Use more conservative worker count to avoid rate limiting
+        self.max_workers = max_workers or min(4, (os.cpu_count() or 1))
+        # Rate limiting state
+        self.rate_limit_count = 0
+        self.last_rate_limit_time = 0
 
     def fetch_company_details(self, ticker: str) -> CompanyDetails:
         """Fetch company details from all available sources."""
@@ -594,6 +662,12 @@ class CompanyDetailsFetcher:
         ticker = self._clean_ticker(ticker)
 
         logger.info(f"Fetching details for ticker: {ticker}")
+
+        # Check if we're in a rate limit cooldown period
+        current_time = time.time()
+        if self.rate_limit_count > 3 and current_time - self.last_rate_limit_time < 300:  # 5 minutes
+            logger.warning("Rate limit cooldown active, skipping request")
+            return company_details
 
         for scraper in self.scrapers:
             try:
@@ -607,6 +681,10 @@ class CompanyDetailsFetcher:
                 logger.error(
                     f"Error scraping {ticker} with {scraper.__class__.__name__}: {e}"
                 )
+                # If we get rate limited, update our state
+                if "429" in str(e) or "rate limit" in str(e).lower():
+                    self.rate_limit_count += 1
+                    self.last_rate_limit_time = current_time
                 continue
 
         return company_details
@@ -625,6 +703,8 @@ class CompanyDetailsFetcher:
                 ticker = future_to_ticker[future]
                 try:
                     results[ticker] = future.result()
+                    # Add small delay between processing results to avoid overwhelming servers
+                    time.sleep(0.5)
                 except Exception as e:
                     logger.error(f"Error processing {ticker}: {e}")
                     results[ticker] = CompanyDetails()

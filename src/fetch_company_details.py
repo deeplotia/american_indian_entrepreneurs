@@ -36,9 +36,6 @@ def send_request(url):
     try:
         if 'google.com' in url:
             res = requests.get(url, cookies={'CONSENT': 'YES+'}, headers=headers)
-        elif 'yahoo.com' in url:
-            # Simulate accepting cookies for Yahoo Finance
-            res = requests.get(url, cookies={'A1': 'd=AQABBJ...; Expires=Tue, 19 Jan 2038 03:14:07 GMT; Path=/; Domain=.yahoo.com; Secure; HttpOnly'}, headers=headers)    
         else:
             res = requests.get(url, headers=headers)
         if res.status_code >= 300:
@@ -111,7 +108,7 @@ def get_from_gfinance_nyse(ticker, company_details):
 # Get from CNBC
 def get_from_cnbc(ticker: str, company_details):
     set_source_url = False
-    url = "p" + ticker
+    url = "https://www.cnbc.com/quotes/" + ticker
     set_ip()
     res = send_request(url)
     if res:
@@ -143,7 +140,7 @@ def get_from_cnbc(ticker: str, company_details):
 # Get from CNN
 def get_from_cnn(ticker: str, company_details):
     set_source_url = False
-    url = "https://money.cnn.com/quote/profile/profile.html?symb=" + ticker # Change this logic - now the website has changed
+    url = "https://money.cnn.com/quote/profile/profile.html?symb=" + ticker
     set_ip()
     res = send_request(url)
     if res:
@@ -246,7 +243,7 @@ def get_from_yahoo_finance(ticker: str, company_details):
                 td_list = tr.find_all("td")
                 if len(td_list) > 1:
                     if td_list[1].span is not None:
-                        text = td_list[1].span.text # Change this logic - now the order has changed
+                        text = td_list[1].span.text
                         if text is not None and ("Chief Exec. Officer" in text or "CEO" in text):
                             company_details["ceo"] = td_list[0].span.text
                             set_source_url = False

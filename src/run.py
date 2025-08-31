@@ -3,8 +3,6 @@ import json
 from threading import Thread
 
 import pandas as pd
-
-import fetch_company_details
 from fetch_company_details import *
 
 
@@ -27,9 +25,9 @@ df.insert(16, "Industry", "")
 df.insert(17, "Source", "")
 df.insert(18, "Source Link", "")
 
-total_rows = 10#len(df)
+total_rows = len(df)
 
-rows_per_thread = 583
+rows_per_thread = 100
 total_threads = (total_rows / rows_per_thread).__ceil__()
 print("Total Rows: {} and Total Threads: {}".format(total_rows, total_threads))
 cnt = 0
@@ -38,14 +36,6 @@ start_time = time.time()
 
 
 # Save Ceo Details to the DataFrame
-def set_ceo_details(index, ceo, source, url, ticker):
-    df.iloc[index, 12] = ceo
-    df.iloc[index, 13] = source
-    df.iloc[index, 14] = url
-    print("#{}: ".format(index + 1), "Ticker:{}, ".format(ticker), "CEO:{}, ".format(ceo), "Source:{}".format(source),
-          sep="")
-
-
 def set_ceo_details_new(index, company_details: dict, ticker):
     df.iloc[index, 12] = company_details.get("ceo", "")
     df.iloc[index, 13] = company_details.get("employees", "")
@@ -144,7 +134,7 @@ def calc_process_time(started_time, cur_iter, max_iter):
 
 # Write data to excel
 def write_to_csv():
-    name = "nasdaq_screener_{}.csv".format(time.time_ns())
+    name = "output/nasdaq_run_mt_{}.csv".format(datetime.datetime.now().strftime("%Y-%m-%d_%H:%M"))
     print("writing data to {}".format(name))
     df.to_csv(name, index=False,
                 columns=["symbol", "name", "marketCap", "CEO", "Employees", "Headquarters", "Founded", "Industry",

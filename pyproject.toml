@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "aiohttp>=3.12.13",
+    "asyncio>=4.0.0",
     "beautifulsoup4>=4.13.4",
     "crawl4ai>=0.6.3",
     "faker>=37.6.0",

@@ -37,6 +37,60 @@ if not logger.handlers:
     logger.addHandler(fh)
 # LOG configuration END    
 
+# periodic CSV flush configuration
+FLUSH_INTERVAL_SECONDS = 30  # flush every N seconds
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def _csv_path():
+    return os.path.join(OUTPUT_DIR, "nasdaq_screener_{}.csv".format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")))
+
+def flush_df_to_csv(path=None):
+    """Write current DataFrame snapshot to CSV and fsync to ensure on-disk flush."""
+    path = path or _csv_path()
+    try:
+        # open file and let pandas write into it, then flush+fsync
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            df.to_csv(f, index=False,
+                      columns=["symbol", "name", "marketCap", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                               "Source", "Source Link"],
+                      header=["Symbol", "Name", "Market Capital", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                              "Source", "Source Link"])
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                # os.fsync may not be available on some platforms or file systems; ignore if it fails
+                pass
+        logger.info("Flushed DataFrame snapshot to %s", path)
+    except Exception as e:
+        logger.exception("Failed to flush CSV: %s", e)
+
+async def flush_csv_periodically(done_event: asyncio.Event):
+    """Background task that periodically writes current DataFrame to CSV until done_event is set."""
+    # use a stable path for interim flushes so file is overwritten rather than creating many files
+    interim_path = os.path.join(OUTPUT_DIR, "nasdaq_screener_current.csv")
+    while not done_event.is_set():
+        await asyncio.sleep(FLUSH_INTERVAL_SECONDS)
+        try:
+            # write snapshot
+            with open(interim_path, "w", newline="", encoding="utf-8") as f:
+                df.to_csv(f, index=False,
+                          columns=["symbol", "name", "marketCap", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                                   "Source", "Source Link"],
+                          header=["Symbol", "Name", "Market Capital", "CEO", "Employees", "Headquarters", "Founded", "Industry",
+                                  "Source", "Source Link"])
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except Exception:
+                    pass
+            logger.info("Periodic flush wrote snapshot to %s", interim_path)
+        except Exception as e:
+            logger.exception("Periodic flush failed: %s", e)
+    # final flush when stopping
+    flush_df_to_csv()
+
 def _filled_count(cd: dict) -> int:
     """Return number of non-empty data fields (excluding source/url sets)."""
     return sum(1 for k, v in cd.items() if k not in ("source", "url") and v)
@@ -198,11 +252,19 @@ async def main_async():
     concurrency = 10
     sem = asyncio.Semaphore(concurrency)
 
+    # start periodic flush background task
+    done_event = asyncio.Event()
+    flush_task = asyncio.create_task(flush_csv_periodically(done_event))
+
     tasks = []
     for row_index in range(total_rows):
         tasks.append(asyncio.create_task(_worker(row_index, sem)))
 
     await asyncio.gather(*tasks)
+
+    # signal flush task to finish and wait
+    done_event.set()
+    await flush_task
 
     # when finished write out CSV
     write_to_csv()

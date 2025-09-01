@@ -24,7 +24,7 @@ from src.fetchers.company_details_fetcher import CompanyDetailsFetcher
 # Configuration for rate limiting - adjust these values if you encounter 429/403 errors
 RATE_LIMITING_CONFIG = {
     "max_workers":  min(32, (os.cpu_count() or 1) * 5),  # Number of concurrent workers (lower = more conservative)
-    "batch_size": 10,  # Number of companies to process in each batch
+    "batch_size": 100,  # Number of companies to process in each batch
     "test_mode": os.getenv("TEST_MODE", "False").lower() == "true",  # Set to True for testing with limited data
     "test_limit": 5,   # Number of companies to process in test mode
     "batch_delay": 2,   # seconds to wait between batches

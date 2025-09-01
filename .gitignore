@@ -1,5 +1,7 @@
-__pycache__
 
+.DS_Store
+
+__pycache__
 .idea
 lib/
 
@@ -9,8 +11,6 @@ pip-delete-this-directory.txt
 *.log
 
 .venv
-
-.DS_Store
 
 .pytest_cache/
 

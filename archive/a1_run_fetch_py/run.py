@@ -4,7 +4,7 @@ from threading import Thread
 
 import pandas as pd
 
-from fetch_company_details import *
+from archive.a1_run_fetch_py.fetch_company_details import *
 
 
 # Get Stock Screener Data From Nasdaq
